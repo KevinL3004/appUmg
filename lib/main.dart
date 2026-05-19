@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:umg_activo_colaborador/screens/partidas_screen.dart';
 import 'package:umg_activo_colaborador/screens/screens.dart';
 
 void main() {
@@ -22,20 +23,20 @@ class MyApp extends StatelessWidget {
       title: 'Activos Colaboradores',
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.dark(
+        colorScheme: const ColorScheme.dark(
           primary: primaryPink,
           onPrimary: Colors.white,
           primaryContainer: deepRose,
           onPrimaryContainer: softPurple,
           secondary: accentPurple,
           onSecondary: Colors.white,
-          secondaryContainer: const Color(0xFF4A0E5C),
+          secondaryContainer: Color(0xFF4A0E5C),
           onSecondaryContainer: softPurple,
           surface: surfaceColor,
-          onSurface: const Color(0xFFF3E5F5),
-          surfaceContainerHighest: const Color(0xFF2A1020),
-          outline: const Color(0xFF6D3B5A),
-          error: const Color(0xFFCF6679),
+          onSurface: Color(0xFFF3E5F5),
+          surfaceContainerHighest: Color(0xFF2A1020),
+          outline: Color(0xFF6D3B5A),
+          error: Color(0xFFCF6679),
         ),
         appBarTheme: const AppBarTheme(
           backgroundColor: deepRose,
@@ -120,15 +121,25 @@ class MyApp extends StatelessWidget {
         ),
         scaffoldBackgroundColor: backgroundDark,
         textTheme: const TextTheme(
-          displayLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          displayMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          headlineLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-          headlineMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-          titleLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, letterSpacing: 0.3),
+          displayLarge:
+              TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          displayMedium:
+              TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          headlineLarge:
+              TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          headlineMedium:
+              TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+          titleLarge: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.3),
           titleMedium: TextStyle(color: Color(0xFFF3E5F5), letterSpacing: 0.2),
           bodyLarge: TextStyle(color: Color(0xFFF3E5F5)),
           bodyMedium: TextStyle(color: Color(0xFFD4A8C0)),
-          labelLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+          labelLarge: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5),
         ),
       ),
       home: const LoguinScreen(),
@@ -139,6 +150,7 @@ class MyApp extends StatelessWidget {
         AsignacionesScreen.routeName: (context) => const AsignacionesScreen(),
         ProveedoresScreen.routeName: (context) => const ProveedoresScreen(),
         DepartamentosScreen.routeName: (context) => const DepartamentosScreen(),
+        PartidasScreen.routeName: (context) => const PartidasScreen(),
       },
     );
   }

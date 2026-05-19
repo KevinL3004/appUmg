@@ -1,3 +1,4 @@
+export 'package:umg_activo_colaborador/screens/partidas_screen.dart';
 export 'package:umg_activo_colaborador/screens/loguin_screen.dart';
 export 'package:umg_activo_colaborador/screens/colaboradores_screen.dart';
 export 'package:umg_activo_colaborador/screens/departamentos_screen.dart';
