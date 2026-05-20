@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:umg_activo_colaborador/models/models.dart';
+import 'package:umg_activo_colaborador/services/session_services.dart';
 import 'package:umg_activo_colaborador/widgets/widgets.dart';
 
 class AsignacionesScreen extends StatefulWidget {
@@ -16,11 +17,21 @@ class _AsignacionesScreenState extends State<AsignacionesScreen> {
   List<AsignacionesModel> _asignaciones = [];
   bool _isLoading = true;
   String? _error;
+  bool _soloMias = false;
 
   @override
   void initState() {
     super.initState();
     _fetchAsignaciones();
+  }
+
+  List<AsignacionesModel> get _asignacionesFiltradas {
+    if (!_soloMias) return _asignaciones;
+
+    final employeeId = SessionService().employeeId;
+    if (employeeId == null) return [];
+
+    return _asignaciones.where((a) => a.employee.id == employeeId).toList();
   }
 
   Future<void> _fetchAsignaciones() async {
@@ -129,160 +140,249 @@ class _AsignacionesScreenState extends State<AsignacionesScreen> {
       );
     }
 
-    if (_asignaciones.isEmpty) {
-      return const Center(child: Text('No hay asignaciones registradas'));
-    }
+    final lista = _asignacionesFiltradas;
 
-    return RefreshIndicator(
-      onRefresh: _fetchAsignaciones,
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-        itemCount: _asignaciones.length,
-        itemBuilder: (context, index) {
-          final asignacion = _asignaciones[index];
-          return Card(
-            margin: const EdgeInsets.only(bottom: 10),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Encabezado: activo + badge status
-                  Row(
-                    children: [
-                      const Icon(Icons.assignment_outlined, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          asignacion.asset.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 15,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _statusColor(
-                            asignacion.status,
-                          ).withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: _statusColor(
-                              asignacion.status,
-                            ).withOpacity(0.5),
-                          ),
-                        ),
-                        child: Text(
-                          _statusLabel(asignacion.status),
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: _statusColor(asignacion.status),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
+    return Column(
+      children: [
+        // Barra de filtros
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+          child: Row(
+            children: [
+              // Contador
+              Text(
+                '${lista.length} asignacion${lista.length == 1 ? '' : 'es'}',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const Spacer(),
 
-                  // Código del activo
-                  Row(
-                    children: [
-                      const Icon(Icons.qr_code, size: 14),
-                      const SizedBox(width: 4),
-                      Text(
-                        asignacion.asset.assetCode,
-                        style: const TextStyle(fontSize: 12),
+              // Botón "Asignados a mí"
+              // Solo se muestra si el usuario logueado tiene employeeId
+              if (SessionService().employeeId != null)
+                GestureDetector(
+                  onTap: () => setState(() => _soloMias = !_soloMias),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 7,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _soloMias
+                          ? const Color(0xFF8B1A4A)
+                          : const Color(0xFF8B1A4A).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: const Color(0xFF8B1A4A).withOpacity(0.5),
                       ),
-                      const SizedBox(width: 16),
-                      const Icon(Icons.location_on_outlined, size: 14),
-                      const SizedBox(width: 4),
-                      Text(
-                        asignacion.asset.location,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 14),
-
-                  // Empleado
-                  Row(
-                    children: [
-                      const Icon(Icons.person_outline, size: 14),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          asignacion.employee.fullName,
-                          style: const TextStyle(fontSize: 12),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Icons.business_outlined, size: 14),
-                      const SizedBox(width: 4),
-                      Text(
-                        asignacion.employee.department.name,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ],
-                  ),
-                  const Divider(height: 14),
-
-                  // Fechas
-                  Row(
-                    children: [
-                      const Icon(Icons.calendar_today_outlined, size: 13),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Asignado: ${_formatDate(asignacion.assignedAt)}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      const Spacer(),
-                      const Icon(Icons.event_outlined, size: 13),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Vence: ${_formatDate(asignacion.expectedReturnAt)}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ],
-                  ),
-
-                  // Devuelto (solo si aplica)
-                  if (asignacion.returnedAt != null) ...[
-                    const SizedBox(height: 4),
-                    Row(
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(
-                          Icons.check_circle_outline,
-                          size: 13,
-                          color: Colors.green,
+                        Icon(
+                          Icons.person_pin_outlined,
+                          size: 15,
+                          color: _soloMias
+                              ? Colors.white
+                              : const Color(0xFFCE93D8),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 6),
                         Text(
-                          'Devuelto: ${_formatDate(asignacion.returnedAt!)}',
-                          style: const TextStyle(
+                          'Asignados a mí',
+                          style: TextStyle(
                             fontSize: 12,
-                            color: Colors.green,
+                            fontWeight: FontWeight.w600,
+                            color: _soloMias
+                                ? Colors.white
+                                : const Color(0xFFCE93D8),
                           ),
                         ),
+                        if (_soloMias) ...[
+                          const SizedBox(width: 6),
+                          const Icon(
+                            Icons.close,
+                            size: 13,
+                            color: Colors.white,
+                          ),
+                        ],
                       ],
                     ),
-                  ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+
+        // Mensaje si no hay resultados con el filtro activo
+        if (_soloMias && lista.isEmpty)
+          const Expanded(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.inbox_outlined, size: 48, color: Colors.grey),
+                  SizedBox(height: 12),
+                  Text(
+                    'No tienes asignaciones activas',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    'No se encontraron activos asignados a tu usuario',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
                 ],
               ),
             ),
-          );
-        },
-      ),
+          )
+        else if (!_soloMias && lista.isEmpty)
+          const Expanded(
+            child: Center(child: Text('No hay asignaciones registradas')),
+          )
+        else
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: _fetchAsignaciones,
+              child: ListView.builder(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                itemCount: lista.length,
+                itemBuilder: (context, index) {
+                  final asignacion = lista[index];
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.assignment_outlined, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  asignacion.asset.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: _statusColor(asignacion.status)
+                                      .withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: _statusColor(asignacion.status)
+                                        .withOpacity(0.5),
+                                  ),
+                                ),
+                                child: Text(
+                                  _statusLabel(asignacion.status),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: _statusColor(asignacion.status),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              const Icon(Icons.qr_code, size: 14),
+                              const SizedBox(width: 4),
+                              Text(
+                                asignacion.asset.assetCode,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              const SizedBox(width: 16),
+                              const Icon(Icons.location_on_outlined, size: 14),
+                              const SizedBox(width: 4),
+                              Text(
+                                asignacion.asset.location,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ],
+                          ),
+                          const Divider(height: 14),
+                          Row(
+                            children: [
+                              const Icon(Icons.person_outline, size: 14),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  asignacion.employee.fullName,
+                                  style: const TextStyle(fontSize: 12),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            children: [
+                              const Icon(Icons.business_outlined, size: 14),
+                              const SizedBox(width: 4),
+                              Text(
+                                asignacion.employee.department.name,
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ],
+                          ),
+                          const Divider(height: 14),
+                          Row(
+                            children: [
+                              const Icon(Icons.calendar_today_outlined,
+                                  size: 13),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Asignado: ${_formatDate(asignacion.assignedAt)}',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                              const Spacer(),
+                              const Icon(Icons.event_outlined, size: 13),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Vence: ${_formatDate(asignacion.expectedReturnAt)}',
+                                style: const TextStyle(fontSize: 12),
+                              ),
+                            ],
+                          ),
+                          if (asignacion.returnedAt != null) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(Icons.check_circle_outline,
+                                    size: 13, color: Colors.green),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Devuelto: ${_formatDate(asignacion.returnedAt!)}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.green,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

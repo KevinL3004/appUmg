@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:umg_activo_colaborador/screens/partidas_screen.dart';
+import 'package:umg_activo_colaborador/screens/proximas_bajas_screen.dart';
 import 'package:umg_activo_colaborador/screens/screens.dart';
+import 'package:umg_activo_colaborador/screens/usuarios_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -151,6 +153,8 @@ class MyApp extends StatelessWidget {
         ProveedoresScreen.routeName: (context) => const ProveedoresScreen(),
         DepartamentosScreen.routeName: (context) => const DepartamentosScreen(),
         PartidasScreen.routeName: (context) => const PartidasScreen(),
+        ProximasBajasScreen.routeName: (context) => const ProximasBajasScreen(),
+        UsuariosScreen.routeName: (context) => const UsuariosScreen(),
       },
     );
   }
