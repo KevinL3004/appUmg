@@ -55,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool get _canSeeActivos =>
       ['ADMINISTRADOR', 'COMPRAS', 'INVENTARIO', 'FINANZAS'].contains(_role);
   bool get _canSeeAsignaciones =>
-      ['ADMINISTRADOR', 'COMPRAS', 'INVENTARIO', 'EMPLEADO'].contains(_role);
+      ['ADMINISTRADOR', 'INVENTARIO'].contains(_role);
   bool get _canSeeProveedores =>
       ['ADMINISTRADOR', 'COMPRAS', 'INVENTARIO'].contains(_role);
   bool get _canSeeDepartamentos => _role == 'ADMINISTRADOR';
@@ -295,6 +295,12 @@ class _HomeScreenState extends State<HomeScreen> {
               title: const Text('Próximas Bajas'),
               onTap: () =>
                   Navigator.pushNamed(context, ProximasBajasScreen.routeName),
+            ),
+          ListTile(
+              leading: const Icon(Icons.assignment_outlined),
+              title: const Text('Mis asignaciones'),
+              onTap: () =>
+                  Navigator.pushNamed(context, MisAsignacionesScreen.routeName),
             ),
         ],
       ),

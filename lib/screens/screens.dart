@@ -1,3 +1,4 @@
+export 'package:umg_activo_colaborador/screens/mis_asignaciones_screen.dart';
 export 'package:umg_activo_colaborador/screens/crear_asignacion_screen.dart';
 export 'package:umg_activo_colaborador/screens/crear_activo_screen.dart';
 export 'package:umg_activo_colaborador/screens/crear_usuario_screen.dart';
@@ -12,6 +13,7 @@ export 'package:umg_activo_colaborador/screens/proveedores_screen.dart';
 export 'package:umg_activo_colaborador/screens/asignaciones_screen.dart';
 export 'package:umg_activo_colaborador/screens/activos_screen.dart';
 export 'package:umg_activo_colaborador/screens/home_screen.dart';
+
 
 
 

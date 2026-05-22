@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:umg_activo_colaborador/screens/screens.dart';
+import 'package:umg_activo_colaborador/services/session_services.dart';
 
 class LoguinScreen extends StatefulWidget {
   const LoguinScreen({super.key});
@@ -35,7 +36,8 @@ class _LoguinScreenState extends State<LoguinScreen> {
 
     try {
       final credentials = base64Encode(
-        utf8.encode('${_usernameController.text.trim()}:${_passwordController.text}'),
+        utf8.encode(
+            '${_usernameController.text.trim()}:${_passwordController.text}'),
       );
 
       final response = await http.get(
@@ -47,24 +49,31 @@ class _LoguinScreenState extends State<LoguinScreen> {
       );
 
       if (response.statusCode == 200) {
-        // Reemplaza esta línea en _onLogin() cuando el statusCode == 200:
-      final data = json.decode(response.body);
+        final data = json.decode(response.body);
 
-      if (mounted) {
-        Navigator.pushReplacementNamed(
-          context,
-          HomeScreen.routeName,
-          arguments: {
-            'username': data['username'],
-            'role': data['role'],
-            'employeeId': data['employeeId'],
-          },
+        SessionService().saveSession(
+          username: data['username'],
+          password: _passwordController.text.trim(),
+          role: data['role'],
+          employeeId: data['employeeId'],
         );
-      }
+
+        if (mounted) {
+          Navigator.pushReplacementNamed(
+            context,
+            HomeScreen.routeName,
+            arguments: {
+              'username': data['username'],
+              'role': data['role'],
+              'employeeId': data['employeeId'],
+            },
+          );
+        }
       } else if (response.statusCode == 401) {
         setState(() => _errorMessage = 'Usuario o contraseña incorrectos');
       } else {
-        setState(() => _errorMessage = 'Error del servidor: ${response.statusCode}');
+        setState(
+            () => _errorMessage = 'Error del servidor: ${response.statusCode}');
       }
     } catch (e) {
       setState(() => _errorMessage = 'No se pudo conectar al servidor');
@@ -122,9 +131,10 @@ class _LoguinScreenState extends State<LoguinScreen> {
                       ),
                       filled: true,
                     ),
-                    validator: (value) => (value == null || value.trim().isEmpty)
-                        ? 'Ingresa tu usuario'
-                        : null,
+                    validator: (value) =>
+                        (value == null || value.trim().isEmpty)
+                            ? 'Ingresa tu usuario'
+                            : null,
                   ),
                   const SizedBox(height: 16),
 
@@ -144,8 +154,8 @@ class _LoguinScreenState extends State<LoguinScreen> {
                               ? Icons.visibility_outlined
                               : Icons.visibility_off_outlined,
                         ),
-                        onPressed: () =>
-                            setState(() => _obscurePassword = !_obscurePassword),
+                        onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword),
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -153,7 +163,8 @@ class _LoguinScreenState extends State<LoguinScreen> {
                       filled: true,
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty) return 'Ingresa tu contraseña';
+                      if (value == null || value.isEmpty)
+                        return 'Ingresa tu contraseña';
                       if (value.length < 6) return 'Mínimo 6 caracteres';
                       return null;
                     },
