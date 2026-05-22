@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:umg_activo_colaborador/models/models.dart';
+import 'package:umg_activo_colaborador/screens/screens.dart';
 import 'package:umg_activo_colaborador/widgets/widgets.dart';
 
 class ActivosScreen extends StatefulWidget {
@@ -83,10 +84,67 @@ class _ActivosScreenState extends State<ActivosScreen> {
     }
   }
 
+  void _mostrarQrActivo(int assetId) {
+    final credentials = base64Encode(
+      utf8.encode('admin:admin123'),
+    );
+
+    final imageUrl =
+        'https://datos-gh6q.onrender.com/api/employee/me/assets/$assetId/qr.png';
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Código QR del activo'),
+        content: SizedBox(
+          width: 250,
+          height: 250,
+          child: Image.network(
+            imageUrl,
+            headers: {
+              'Authorization': 'Basic $credentials',
+            },
+            fit: BoxFit.contain,
+            loadingBuilder: (context, child, progress) {
+              if (progress == null) return child;
+
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
+            },
+            errorBuilder: (_, __, ___) {
+              return const Center(
+                child: Text(
+                  'No se pudo cargar el QR',
+                  textAlign: TextAlign.center,
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const AppBarCustom(title: 'Activos'),
+      appBar: AppBarCustom(
+        title: 'Activos',
+        actions: [
+          IconButton(
+              onPressed: () {
+                Navigator.pushNamed(context, CrearActivoScreen.routeName);
+              },
+              icon: const Icon(Icons.add_outlined))
+        ],
+      ),
       body: _buildBody(),
     );
   }
@@ -161,12 +219,14 @@ class _ActivosScreenState extends State<ActivosScreen> {
                         ),
                         child: Text(
                           _statusLabel(activo.status),
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: _statusColor(activo.status),
-                          ),
                         ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        onPressed: () {
+                          _mostrarQrActivo(activo.id);
+                        },
+                        icon: const Icon(Icons.qr_code_2_outlined),
                       ),
                     ],
                   ),

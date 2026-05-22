@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:umg_activo_colaborador/screens/crear_activo_screen.dart';
+import 'package:umg_activo_colaborador/screens/crear_asignacion_screen.dart';
+import 'package:umg_activo_colaborador/screens/crear_empleado_screen.dart';
+import 'package:umg_activo_colaborador/screens/crear_usuario_screen.dart';
 import 'package:umg_activo_colaborador/screens/partidas_screen.dart';
 import 'package:umg_activo_colaborador/screens/proximas_bajas_screen.dart';
 import 'package:umg_activo_colaborador/screens/screens.dart';
@@ -155,6 +159,10 @@ class MyApp extends StatelessWidget {
         PartidasScreen.routeName: (context) => const PartidasScreen(),
         ProximasBajasScreen.routeName: (context) => const ProximasBajasScreen(),
         UsuariosScreen.routeName: (context) => const UsuariosScreen(),
+        CrearActivoScreen.routeName: (context) => const CrearActivoScreen(),
+        CrearAsignacionScreen.routeName: (context) => const CrearAsignacionScreen(),
+        CrearEmpleadoScreen.routeName: (context) => const CrearEmpleadoScreen(),
+        CrearUsuarioScreen.routeName: (context) => const CrearUsuarioScreen(),
       },
     );
   }

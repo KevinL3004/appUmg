@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:umg_activo_colaborador/models/models.dart';
+import 'package:umg_activo_colaborador/screens/screens.dart';
 import 'package:umg_activo_colaborador/services/session_services.dart';
 import 'package:umg_activo_colaborador/widgets/widgets.dart';
 
@@ -108,10 +109,67 @@ class _AsignacionesScreenState extends State<AsignacionesScreen> {
     }
   }
 
+  void _mostrarQrActivo(int assetId) {
+    final credentials = base64Encode(
+      utf8.encode('admin:admin123'),
+    );
+
+    final imageUrl =
+        'https://datos-gh6q.onrender.com/api/employee/me/assets/$assetId/qr.png';
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Código QR del activo'),
+        content: SizedBox(
+          width: 250,
+          height: 250,
+          child: Image.network(
+            imageUrl,
+            headers: {
+              'Authorization': 'Basic $credentials',
+            },
+            fit: BoxFit.contain,
+            loadingBuilder: (context, child, progress) {
+              if (progress == null) return child;
+
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
+            },
+            errorBuilder: (_, __, ___) {
+              return const Center(
+                child: Text(
+                  'No se pudo cargar el QR',
+                  textAlign: TextAlign.center,
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const AppBarCustom(title: 'Asignaciones'),
+      appBar: AppBarCustom(
+        title: 'Asignaciones',
+        actions: [
+          IconButton(
+              onPressed: () {
+                Navigator.pushNamed(context, CrearAsignacionScreen.routeName);
+              },
+              icon: const Icon(Icons.add_outlined))
+        ],
+      ),
       body: _buildBody(),
     );
   }
@@ -268,6 +326,7 @@ class _AsignacionesScreenState extends State<AsignacionesScreen> {
                                     fontWeight: FontWeight.w600,
                                     fontSize: 15,
                                   ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               Container(
@@ -292,6 +351,20 @@ class _AsignacionesScreenState extends State<AsignacionesScreen> {
                                     color: _statusColor(asignacion.status),
                                   ),
                                 ),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                onPressed: () {
+                                  _mostrarQrActivo(asignacion.asset.id);
+                                },
+                                icon: const Icon(
+                                  Icons.qr_code_2_outlined,
+                                  size: 22,
+                                ),
+                                tooltip: 'Ver QR',
+                                splashRadius: 20,
+                                constraints: const BoxConstraints(),
+                                padding: EdgeInsets.zero,
                               ),
                             ],
                           ),

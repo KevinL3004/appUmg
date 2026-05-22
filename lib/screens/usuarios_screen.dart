@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:umg_activo_colaborador/models/models.dart';
+import 'package:umg_activo_colaborador/screens/screens.dart';
 import 'package:umg_activo_colaborador/widgets/widgets.dart';
 
 class UsuariosScreen extends StatefulWidget {
@@ -124,7 +125,16 @@ class _UsuariosScreenState extends State<UsuariosScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const AppBarCustom(title: 'Usuarios'),
+      appBar: AppBarCustom(
+        title: 'Usuarios',
+        actions: [
+          IconButton(
+              onPressed: () {
+                Navigator.pushNamed(context, CrearUsuarioScreen.routeName);
+              },
+              icon: const Icon(Icons.add_outlined))
+        ],
+      ),
       body: _buildBody(),
     );
   }

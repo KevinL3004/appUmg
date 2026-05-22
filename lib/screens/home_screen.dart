@@ -17,15 +17,17 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic> _userData = {};
 
-  // Resumen financiero
   double _totalInvested = 0;
   bool _isLoadingInvestment = true;
 
-  // Estadísticas de activos
   int _totalActivos = 0;
   int _asignados = 0;
   int _enAlmacen = 0;
   int _proximasBajas = 0;
+  int _totalAsignaciones = 0;
+  int _asignacionesActivas = 0;
+  int _asignacionesVencidas = 0;
+  int _totalColaboradores = 0;
   bool _isLoadingStats = true;
 
   @override
@@ -41,16 +43,33 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadInvestmentSummary();
-    _loadAssetStats();
+    _loadDashboardStats();
   }
 
+  // ── Permisos por rol ──────────────────────────────────────────────
+  String get _role => _userData['role'] ?? SessionService().role ?? '';
+
+  bool get _canSeeColaboradores =>
+      ['ADMINISTRADOR', 'INVENTARIO'].contains(_role);
+  bool get _canSeeUsuarios => _role == 'ADMINISTRADOR';
+  bool get _canSeeActivos =>
+      ['ADMINISTRADOR', 'COMPRAS', 'INVENTARIO', 'FINANZAS'].contains(_role);
+  bool get _canSeeAsignaciones =>
+      ['ADMINISTRADOR', 'COMPRAS', 'INVENTARIO', 'EMPLEADO'].contains(_role);
+  bool get _canSeeProveedores =>
+      ['ADMINISTRADOR', 'COMPRAS', 'INVENTARIO'].contains(_role);
+  bool get _canSeeDepartamentos => _role == 'ADMINISTRADOR';
+  bool get _canSeePartidas => ['ADMINISTRADOR', 'FINANZAS'].contains(_role);
+  bool get _canSeeProximasBajas =>
+      ['ADMINISTRADOR', 'INVENTARIO', 'FINANZAS'].contains(_role);
+
+  // ── Carga de datos ────────────────────────────────────────────────
   Future<void> _loadInvestmentSummary() async {
     try {
       final credentials = base64Encode(utf8.encode('admin:admin123'));
       final response = await http.get(
         Uri.parse(
-          'https://datos-gh6q.onrender.com/api/reports/invested-assets/summary',
-        ),
+            'https://datos-gh6q.onrender.com/api/reports/invested-assets/summary'),
         headers: {
           'Authorization': 'Basic $credentials',
           'Content-Type': 'application/json',
@@ -70,41 +89,39 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _loadAssetStats() async {
+  Future<void> _loadDashboardStats() async {
     try {
       final credentials = base64Encode(utf8.encode('admin:admin123'));
 
-      // Llama ambos endpoints en paralelo
       final responses = await Future.wait([
         http.get(
           Uri.parse('https://datos-gh6q.onrender.com/api/inventory/assets'),
-          headers: {
-            'Authorization': 'Basic $credentials',
-            'Content-Type': 'application/json',
-          },
+          headers: {'Authorization': 'Basic $credentials'},
         ),
         http.get(
           Uri.parse(
-            'https://datos-gh6q.onrender.com/api/reports/upcoming-disposals',
-          ),
-          headers: {
-            'Authorization': 'Basic $credentials',
-            'Content-Type': 'application/json',
-          },
+              'https://datos-gh6q.onrender.com/api/reports/upcoming-disposals'),
+          headers: {'Authorization': 'Basic $credentials'},
+        ),
+        http.get(
+          Uri.parse('https://datos-gh6q.onrender.com/api/assignments'),
+          headers: {'Authorization': 'Basic $credentials'},
+        ),
+        http.get(
+          Uri.parse('https://datos-gh6q.onrender.com/api/data/employees'),
+          headers: {'Authorization': 'Basic $credentials'},
         ),
       ]);
 
+      // Activos
       if (responses[0].statusCode == 200) {
         final List<dynamic> activos = json.decode(responses[0].body);
-        int asignados = 0;
-        int enAlmacen = 0;
-
+        int asignados = 0, enAlmacen = 0;
         for (final a in activos) {
-          final status = a['status'] ?? '';
-          if (status == 'ASIGNADO') asignados++;
-          if (status == 'EN_ALMACEN') enAlmacen++;
+          final s = a['status'] ?? '';
+          if (s == 'ASIGNADO') asignados++;
+          if (s == 'EN_ALMACEN') enAlmacen++;
         }
-
         setState(() {
           _totalActivos = activos.length;
           _asignados = asignados;
@@ -112,9 +129,32 @@ class _HomeScreenState extends State<HomeScreen> {
         });
       }
 
+      // Próximas bajas
       if (responses[1].statusCode == 200) {
         final List<dynamic> bajas = json.decode(responses[1].body);
         setState(() => _proximasBajas = bajas.length);
+      }
+
+      // Asignaciones
+      if (responses[2].statusCode == 200) {
+        final List<dynamic> asig = json.decode(responses[2].body);
+        int activas = 0, vencidas = 0;
+        for (final a in asig) {
+          final s = a['status'] ?? '';
+          if (s == 'ACTIVA') activas++;
+          if (s == 'VENCIDA') vencidas++;
+        }
+        setState(() {
+          _totalAsignaciones = asig.length;
+          _asignacionesActivas = activas;
+          _asignacionesVencidas = vencidas;
+        });
+      }
+
+      // Colaboradores
+      if (responses[3].statusCode == 200) {
+        final List<dynamic> colabs = json.decode(responses[3].body);
+        setState(() => _totalColaboradores = colabs.length);
       }
 
       setState(() => _isLoadingStats = false);
@@ -124,7 +164,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String get _username => _userData['username'] ?? 'Usuario';
-  String get _role => _userData['role'] ?? '-';
   String? get _employeeId => _userData['employeeId']?.toString();
 
   String _roleLabel(String role) {
@@ -133,11 +172,18 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Administrador';
       case 'EMPLEADO':
         return 'Empleado';
+      case 'COMPRAS':
+        return 'Compras';
+      case 'INVENTARIO':
+        return 'Inventario';
+      case 'FINANZAS':
+        return 'Finanzas';
       default:
         return role;
     }
   }
 
+  // ── Build ─────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -153,465 +199,562 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
+      drawer: _buildDrawer(),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Color(0xFF5C0F30)),
-              child: Text(
-                'Menú de Navegación',
-                style: TextStyle(color: Colors.white, fontSize: 18),
-              ),
+            _buildWelcomeCard(),
+            const SizedBox(height: 16),
+            _buildKpiRow(),
+            const SizedBox(height: 16),
+            if (_canSeeActivos) ...[
+              _buildAssetStatusCard(),
+              const SizedBox(height: 16),
+            ],
+            if (_canSeeAsignaciones) ...[
+              _buildAssignmentsCard(),
+              const SizedBox(height: 16),
+            ],
+            if (_canSeeActivos) ...[
+              _buildInvestmentCard(),
+              const SizedBox(height: 16),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Drawer con módulos por rol ────────────────────────────────────
+  Widget _buildDrawer() {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: [
+          const DrawerHeader(
+            decoration: BoxDecoration(color: Color(0xFF5C0F30)),
+            child: Text(
+              'Menú de Navegación',
+              style: TextStyle(color: Colors.white, fontSize: 18),
             ),
+          ),
+          if (_canSeeColaboradores)
             ListTile(
               leading: const Icon(Icons.people),
               title: const Text('Colaboradores'),
               onTap: () =>
                   Navigator.pushNamed(context, ColaboradoresScreen.routeName),
             ),
+          if (_canSeeUsuarios)
             ListTile(
               leading: const Icon(Icons.emoji_people_outlined),
               title: const Text('Usuarios'),
               onTap: () =>
                   Navigator.pushNamed(context, UsuariosScreen.routeName),
             ),
+          if (_canSeeActivos)
             ListTile(
               leading: const Icon(Icons.computer_outlined),
               title: const Text('Activos'),
               onTap: () =>
                   Navigator.pushNamed(context, ActivosScreen.routeName),
             ),
+          if (_canSeeAsignaciones)
             ListTile(
               leading: const Icon(Icons.assignment_outlined),
               title: const Text('Asignaciones'),
               onTap: () =>
                   Navigator.pushNamed(context, AsignacionesScreen.routeName),
             ),
+          if (_canSeeProveedores)
             ListTile(
               leading: const Icon(Icons.store_outlined),
               title: const Text('Proveedores'),
               onTap: () =>
                   Navigator.pushNamed(context, ProveedoresScreen.routeName),
             ),
+          if (_canSeeDepartamentos)
             ListTile(
               leading: const Icon(Icons.business_outlined),
               title: const Text('Departamentos'),
               onTap: () =>
                   Navigator.pushNamed(context, DepartamentosScreen.routeName),
             ),
+          if (_canSeePartidas)
             ListTile(
               leading: const Icon(Icons.folder_outlined),
               title: const Text('Partidas Presupuestarias'),
               onTap: () =>
                   Navigator.pushNamed(context, PartidasScreen.routeName),
             ),
+          if (_canSeeProximasBajas)
             ListTile(
               leading: const Icon(Icons.outbox_outlined),
               title: const Text('Próximas Bajas'),
               onTap: () =>
                   Navigator.pushNamed(context, ProximasBajasScreen.routeName),
             ),
-          ],
-        ),
+        ],
       ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Tarjeta de bienvenida
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 30,
-                        backgroundColor:
-                            const Color(0xFF5C0F30).withOpacity(0.3),
-                        child: Text(
-                          _username[0].toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFCE93D8),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Bienvenido,',
-                              style:
-                                  TextStyle(fontSize: 13, color: Colors.grey),
-                            ),
-                            Text(
-                              _username.toUpperCase(),
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color:
-                                    const Color(0xFF5C0F30).withOpacity(0.3),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: const Color(0xFF8B1A4A)
-                                      .withOpacity(0.6),
-                                ),
-                              ),
-                              child: Text(
-                                _roleLabel(_role),
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFFCE93D8),
-                                ),
-                              ),
-                            ),
-                            if (_employeeId != null) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                'ID Empleado: $_employeeId',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+    );
+  }
+
+  // ── Tarjeta de bienvenida ─────────────────────────────────────────
+  Widget _buildWelcomeCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 30,
+              backgroundColor: const Color(0xFF5C0F30).withOpacity(0.3),
+              child: Text(
+                _username[0].toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFCE93D8),
                 ),
               ),
-              const SizedBox(height: 16),
-
-              // Tarjeta resumen financiero
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: _isLoadingInvestment
-                      ? const Center(child: CircularProgressIndicator())
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Resumen Financiero',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'Total invertido en activos',
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 13,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Q ${_totalInvested.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFFCE93D8),
-                              ),
-                            ),
-                            const SizedBox(height: 24),
-                            SizedBox(
-                              height: 180,
-                              child: PieChart(
-                                PieChartData(
-                                  sectionsSpace: 2,
-                                  centerSpaceRadius: 45,
-                                  sections: [
-                                    PieChartSectionData(
-                                      value: _totalInvested,
-                                      title: 'Invertido',
-                                      radius: 50,
-                                      color: const Color(0xFF8B1A4A),
-                                      titleStyle: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Tarjeta estadísticas de activos
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: _isLoadingStats
-                      ? const Center(child: CircularProgressIndicator())
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Estado de Activos',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '$_totalActivos activos registrados en total',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-
-                            // Gráfica de barras
-                            SizedBox(
-                              height: 200,
-                              child: BarChart(
-                                BarChartData(
-                                  alignment: BarChartAlignment.spaceAround,
-                                  maxY: (_totalActivos + 5).toDouble(),
-                                  barTouchData: BarTouchData(
-                                    touchTooltipData: BarTouchTooltipData(
-                                      getTooltipItem: (group, groupIndex,
-                                          rod, rodIndex) {
-                                        final labels = [
-                                          'Asignados',
-                                          'En Almacén',
-                                          'Próx. Bajas',
-                                        ];
-                                        return BarTooltipItem(
-                                          '${labels[groupIndex]}\n${rod.toY.toInt()}',
-                                          const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 12,
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                  titlesData: FlTitlesData(
-                                    show: true,
-                                    bottomTitles: AxisTitles(
-                                      sideTitles: SideTitles(
-                                        showTitles: true,
-                                        getTitlesWidget: (value, meta) {
-                                          const labels = [
-                                            'Asignados',
-                                            'En Almacén',
-                                            'Próx. Bajas',
-                                          ];
-                                          return Padding(
-                                            padding: const EdgeInsets.only(
-                                                top: 8),
-                                            child: Text(
-                                              labels[value.toInt()],
-                                              style: const TextStyle(
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          );
-                                        },
-                                        reservedSize: 36,
-                                      ),
-                                    ),
-                                    leftTitles: AxisTitles(
-                                      sideTitles: SideTitles(
-                                        showTitles: true,
-                                        reservedSize: 28,
-                                        getTitlesWidget: (value, meta) =>
-                                            Text(
-                                          value.toInt().toString(),
-                                          style: const TextStyle(fontSize: 11),
-                                        ),
-                                      ),
-                                    ),
-                                    topTitles: const AxisTitles(
-                                      sideTitles:
-                                          SideTitles(showTitles: false),
-                                    ),
-                                    rightTitles: const AxisTitles(
-                                      sideTitles:
-                                          SideTitles(showTitles: false),
-                                    ),
-                                  ),
-                                  gridData: FlGridData(
-                                    show: true,
-                                    drawVerticalLine: false,
-                                    horizontalInterval: 5,
-                                    getDrawingHorizontalLine: (value) =>
-                                        FlLine(
-                                      color: Colors.grey.withOpacity(0.15),
-                                      strokeWidth: 1,
-                                    ),
-                                  ),
-                                  borderData: FlBorderData(show: false),
-                                  barGroups: [
-                                    BarChartGroupData(
-                                      x: 0,
-                                      barRods: [
-                                        BarChartRodData(
-                                          toY: _asignados.toDouble(),
-                                          color: Colors.green,
-                                          width: 40,
-                                          borderRadius:
-                                              BorderRadius.circular(6),
-                                        ),
-                                      ],
-                                    ),
-                                    BarChartGroupData(
-                                      x: 1,
-                                      barRods: [
-                                        BarChartRodData(
-                                          toY: _enAlmacen.toDouble(),
-                                          color: const Color(0xFF8B1A4A),
-                                          width: 40,
-                                          borderRadius:
-                                              BorderRadius.circular(6),
-                                        ),
-                                      ],
-                                    ),
-                                    BarChartGroupData(
-                                      x: 2,
-                                      barRods: [
-                                        BarChartRodData(
-                                          toY: _proximasBajas.toDouble(),
-                                          color: Colors.orange,
-                                          width: 40,
-                                          borderRadius:
-                                              BorderRadius.circular(6),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Leyenda con conteos
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: [
-                                _StatChip(
-                                  label: 'Asignados',
-                                  count: _asignados,
-                                  color: Colors.green,
-                                ),
-                                _StatChip(
-                                  label: 'En Almacén',
-                                  count: _enAlmacen,
-                                  color: const Color(0xFF8B1A4A),
-                                ),
-                                _StatChip(
-                                  label: 'Próx. Bajas',
-                                  count: _proximasBajas,
-                                  color: Colors.orange,
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              const Text(
-                'Accesos rápidos',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 12),
-
-              Row(
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _QuickAccessCard(
-                    icon: Icons.people,
-                    label: 'Colaboradores',
-                    onTap: () => Navigator.pushNamed(
-                        context, ColaboradoresScreen.routeName),
+                  const Text('Bienvenido,',
+                      style: TextStyle(fontSize: 13, color: Colors.grey)),
+                  Text(
+                    _username.toUpperCase(),
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(width: 12),
-                  _QuickAccessCard(
-                    icon: Icons.computer_outlined,
-                    label: 'Activos',
-                    onTap: () =>
-                        Navigator.pushNamed(context, ActivosScreen.routeName),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF5C0F30).withOpacity(0.3),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                          color: const Color(0xFF8B1A4A).withOpacity(0.6)),
+                    ),
+                    child: Text(
+                      _roleLabel(_role),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFFCE93D8),
+                      ),
+                    ),
                   ),
-                  const SizedBox(width: 12),
-                  _QuickAccessCard(
-                    icon: Icons.assignment_outlined,
-                    label: 'Asignaciones',
-                    onTap: () => Navigator.pushNamed(
-                        context, AsignacionesScreen.routeName),
-                  ),
+                  if (_employeeId != null) ...[
+                    const SizedBox(height: 4),
+                    Text('ID Empleado: $_employeeId',
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.grey)),
+                  ],
                 ],
               ),
-              const SizedBox(height: 12),
-
-              Row(
-                children: [
-                  _QuickAccessCard(
-                    icon: Icons.store_outlined,
-                    label: 'Proveedores',
-                    onTap: () => Navigator.pushNamed(
-                        context, ProveedoresScreen.routeName),
-                  ),
-                  const SizedBox(width: 12),
-                  _QuickAccessCard(
-                    icon: Icons.business_outlined,
-                    label: 'Departamentos',
-                    onTap: () => Navigator.pushNamed(
-                        context, DepartamentosScreen.routeName),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(child: SizedBox()),
-                ],
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
+
+  // ── KPIs ──────────────────────────────────────────────────────────
+  Widget _buildKpiRow() {
+    final kpis = <_KpiData>[];
+
+    if (_canSeeActivos) {
+      kpis.add(_KpiData(
+        icon: Icons.computer_outlined,
+        label: 'Total Activos',
+        value: _totalActivos.toString(),
+        color: const Color(0xFF8B1A4A),
+      ));
+    }
+    if (_canSeeColaboradores) {
+      kpis.add(_KpiData(
+        icon: Icons.people_outline,
+        label: 'Colaboradores',
+        value: _totalColaboradores.toString(),
+        color: Colors.blue,
+      ));
+    }
+    if (_canSeeAsignaciones) {
+      kpis.add(_KpiData(
+        icon: Icons.assignment_outlined,
+        label: 'Asignaciones',
+        value: _totalAsignaciones.toString(),
+        color: Colors.teal,
+      ));
+    }
+    if (_canSeeProximasBajas) {
+      kpis.add(_KpiData(
+        icon: Icons.outbox_outlined,
+        label: 'Próx. Bajas',
+        value: _proximasBajas.toString(),
+        color: Colors.orange,
+      ));
+    }
+
+    if (kpis.isEmpty) return const SizedBox.shrink();
+
+    return _isLoadingStats
+        ? const Center(child: CircularProgressIndicator())
+        : GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.9,
+            children: kpis.map((k) => _buildKpiCard(k)).toList(),
+          );
+  }
+
+  Widget _buildKpiCard(_KpiData k) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: k.color.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(k.icon, color: k.color, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(k.value,
+                      style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: k.color)),
+                  Text(k.label,
+                      style: const TextStyle(fontSize: 11, color: Colors.grey),
+                      overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Gráfica estado de activos ─────────────────────────────────────
+  Widget _buildAssetStatusCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: _isLoadingStats
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Estado de Activos',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text('$_totalActivos activos en total',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    height: 200,
+                    child: BarChart(
+                      BarChartData(
+                        alignment: BarChartAlignment.spaceAround,
+                        maxY: (_totalActivos + 5).toDouble(),
+                        barTouchData: BarTouchData(
+                          touchTooltipData: BarTouchTooltipData(
+                            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                              const labels = [
+                                'Asignados',
+                                'En Almacén',
+                                'Próx. Bajas'
+                              ];
+                              return BarTooltipItem(
+                                '${labels[groupIndex]}\n${rod.toY.toInt()}',
+                                const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12),
+                              );
+                            },
+                          ),
+                        ),
+                        titlesData: FlTitlesData(
+                          bottomTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 36,
+                              getTitlesWidget: (value, meta) {
+                                const labels = [
+                                  'Asignados',
+                                  'En Almacén',
+                                  'Próx. Bajas'
+                                ];
+                                return Padding(
+                                  padding: const EdgeInsets.only(top: 8),
+                                  child: Text(labels[value.toInt()],
+                                      style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w500),
+                                      textAlign: TextAlign.center),
+                                );
+                              },
+                            ),
+                          ),
+                          leftTitles: AxisTitles(
+                            sideTitles: SideTitles(
+                              showTitles: true,
+                              reservedSize: 28,
+                              getTitlesWidget: (value, meta) => Text(
+                                  value.toInt().toString(),
+                                  style: const TextStyle(fontSize: 11)),
+                            ),
+                          ),
+                          topTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false)),
+                          rightTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false)),
+                        ),
+                        gridData: FlGridData(
+                          show: true,
+                          drawVerticalLine: false,
+                          horizontalInterval: 5,
+                          getDrawingHorizontalLine: (value) => FlLine(
+                            color: Colors.grey.withOpacity(0.15),
+                            strokeWidth: 1,
+                          ),
+                        ),
+                        borderData: FlBorderData(show: false),
+                        barGroups: [
+                          _bar(0, _asignados.toDouble(), Colors.green),
+                          _bar(1, _enAlmacen.toDouble(),
+                              const Color(0xFF8B1A4A)),
+                          _bar(2, _proximasBajas.toDouble(), Colors.orange),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _StatChip(
+                          label: 'Asignados',
+                          count: _asignados,
+                          color: Colors.green),
+                      _StatChip(
+                          label: 'En Almacén',
+                          count: _enAlmacen,
+                          color: const Color(0xFF8B1A4A)),
+                      _StatChip(
+                          label: 'Próx. Bajas',
+                          count: _proximasBajas,
+                          color: Colors.orange),
+                    ],
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  BarChartGroupData _bar(int x, double y, Color color) {
+    return BarChartGroupData(
+      x: x,
+      barRods: [
+        BarChartRodData(
+          toY: y,
+          color: color,
+          width: 40,
+          borderRadius: BorderRadius.circular(6),
+        ),
+      ],
+    );
+  }
+
+  // ── Gráfica asignaciones ──────────────────────────────────────────
+  Widget _buildAssignmentsCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: _isLoadingStats
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Estado de Asignaciones',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text('$_totalAsignaciones asignaciones en total',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    height: 180,
+                    child: PieChart(
+                      PieChartData(
+                        sectionsSpace: 3,
+                        centerSpaceRadius: 40,
+                        sections: [
+                          PieChartSectionData(
+                            value: _asignacionesActivas.toDouble(),
+                            title: 'Activas\n$_asignacionesActivas',
+                            radius: 55,
+                            color: Colors.green,
+                            titleStyle: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11),
+                          ),
+                          PieChartSectionData(
+                            value: _asignacionesVencidas.toDouble(),
+                            title: 'Vencidas\n$_asignacionesVencidas',
+                            radius: 55,
+                            color: Colors.red,
+                            titleStyle: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11),
+                          ),
+                          if (_totalAsignaciones -
+                                  _asignacionesActivas -
+                                  _asignacionesVencidas >
+                              0)
+                            PieChartSectionData(
+                              value: (_totalAsignaciones -
+                                      _asignacionesActivas -
+                                      _asignacionesVencidas)
+                                  .toDouble(),
+                              title:
+                                  'Otras\n${_totalAsignaciones - _asignacionesActivas - _asignacionesVencidas}',
+                              radius: 55,
+                              color: Colors.blue,
+                              titleStyle: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 11),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _StatChip(
+                          label: 'Activas',
+                          count: _asignacionesActivas,
+                          color: Colors.green),
+                      _StatChip(
+                          label: 'Vencidas',
+                          count: _asignacionesVencidas,
+                          color: Colors.red),
+                      _StatChip(
+                          label: 'Otras',
+                          count: _totalAsignaciones -
+                              _asignacionesActivas -
+                              _asignacionesVencidas,
+                          color: Colors.blue),
+                    ],
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  // ── Gráfica inversión ─────────────────────────────────────────────
+  Widget _buildInvestmentCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: _isLoadingInvestment
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Resumen Financiero',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  const Text('Total invertido en activos',
+                      style: TextStyle(color: Colors.grey, fontSize: 13)),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Q ${_totalInvested.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFCE93D8),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    height: 180,
+                    child: PieChart(
+                      PieChartData(
+                        sectionsSpace: 2,
+                        centerSpaceRadius: 45,
+                        sections: [
+                          PieChartSectionData(
+                            value: _totalInvested,
+                            title: 'Invertido',
+                            radius: 50,
+                            color: const Color(0xFF8B1A4A),
+                            titleStyle: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────
+class _KpiData {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+  const _KpiData(
+      {required this.icon,
+      required this.label,
+      required this.value,
+      required this.color});
 }
 
 class _StatChip extends StatelessWidget {
   final String label;
   final int count;
   final Color color;
-
-  const _StatChip({
-    required this.label,
-    required this.count,
-    required this.color,
-  });
+  const _StatChip(
+      {required this.label, required this.count, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -626,21 +769,13 @@ class _StatChip extends StatelessWidget {
             border: Border.all(color: color.withOpacity(0.4)),
           ),
           child: Center(
-            child: Text(
-              count.toString(),
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-                color: color,
-              ),
-            ),
+            child: Text(count.toString(),
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 14, color: color)),
           ),
         ),
         const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 11, color: Colors.grey),
-        ),
+        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
       ],
     );
   }
@@ -650,12 +785,8 @@ class _QuickAccessCard extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-
-  const _QuickAccessCard({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
+  const _QuickAccessCard(
+      {required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -670,14 +801,10 @@ class _QuickAccessCard extends StatelessWidget {
               children: [
                 Icon(icon, size: 28, color: const Color(0xFFCE93D8)),
                 const SizedBox(height: 8),
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+                Text(label,
+                    style: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w500),
+                    textAlign: TextAlign.center),
               ],
             ),
           ),
