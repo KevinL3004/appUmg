@@ -28,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _asignacionesActivas = 0;
   int _asignacionesVencidas = 0;
   int _totalColaboradores = 0;
+  Map<String, double> _bienesPorEmpleado = {};
   bool _isLoadingStats = true;
 
   @override
@@ -55,13 +56,14 @@ class _HomeScreenState extends State<HomeScreen> {
   bool get _canSeeActivos =>
       ['ADMINISTRADOR', 'COMPRAS', 'INVENTARIO', 'FINANZAS'].contains(_role);
   bool get _canSeeAsignaciones =>
-      ['ADMINISTRADOR', 'INVENTARIO'].contains(_role);
+      ['ADMINISTRADOR', 'COMPRAS', 'INVENTARIO', 'EMPLEADO'].contains(_role);
   bool get _canSeeProveedores =>
       ['ADMINISTRADOR', 'COMPRAS', 'INVENTARIO'].contains(_role);
   bool get _canSeeDepartamentos => _role == 'ADMINISTRADOR';
   bool get _canSeePartidas => ['ADMINISTRADOR', 'FINANZAS'].contains(_role);
   bool get _canSeeProximasBajas =>
       ['ADMINISTRADOR', 'INVENTARIO', 'FINANZAS'].contains(_role);
+  bool get _canCrear => _role == 'ADMINISTRADOR';
 
   // ── Carga de datos ────────────────────────────────────────────────
   Future<void> _loadInvestmentSummary() async {
@@ -149,6 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _asignacionesActivas = activas;
           _asignacionesVencidas = vencidas;
         });
+        _calcularBienesPorEmpleado(asig);
       }
 
       // Colaboradores
@@ -161,6 +164,19 @@ class _HomeScreenState extends State<HomeScreen> {
     } catch (e) {
       setState(() => _isLoadingStats = false);
     }
+  }
+
+  void _calcularBienesPorEmpleado(List<dynamic> asignaciones) {
+    final Map<String, double> mapa = {};
+    for (final a in asignaciones) {
+      final nombre = a['employee']?['fullName'] ?? 'Desconocido';
+      final costo = (a['asset']?['acquisitionCost'] as num?)?.toDouble() ?? 0;
+      mapa[nombre] = (mapa[nombre] ?? 0) + costo;
+    }
+    final sorted = Map.fromEntries(
+      mapa.entries.toList()..sort((a, b) => b.value.compareTo(a.value)),
+    );
+    setState(() => _bienesPorEmpleado = sorted);
   }
 
   String get _username => _userData['username'] ?? 'Usuario';
@@ -217,6 +233,10 @@ class _HomeScreenState extends State<HomeScreen> {
               _buildAssignmentsCard(),
               const SizedBox(height: 16),
             ],
+            if (_canSeeAsignaciones && _bienesPorEmpleado.isNotEmpty) ...[
+              _buildBienesEmpleadoCard(),
+              const SizedBox(height: 16),
+            ],
             if (_canSeeActivos) ...[
               _buildInvestmentCard(),
               const SizedBox(height: 16),
@@ -227,7 +247,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ── Drawer con módulos por rol ────────────────────────────────────
+  // ── Drawer ────────────────────────────────────────────────────────
   Widget _buildDrawer() {
     return Drawer(
       child: ListView(
@@ -240,6 +260,8 @@ class _HomeScreenState extends State<HomeScreen> {
               style: TextStyle(color: Colors.white, fontSize: 18),
             ),
           ),
+
+          // ── Consulta ──────────────────────────────────────────
           if (_canSeeColaboradores)
             ListTile(
               leading: const Icon(Icons.people),
@@ -296,12 +318,42 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: () =>
                   Navigator.pushNamed(context, ProximasBajasScreen.routeName),
             ),
-          ListTile(
-              leading: const Icon(Icons.assignment_outlined),
-              title: const Text('Mis asignaciones'),
-              onTap: () =>
-                  Navigator.pushNamed(context, MisAsignacionesScreen.routeName),
+
+          // ── Crear (solo admin) ────────────────────────────────
+          if (_canCrear) ...[
+            const Divider(),
+            const Padding(
+              padding: EdgeInsets.only(left: 16, top: 8, bottom: 4),
+              child: Text(
+                'CREAR',
+                style: TextStyle(fontSize: 11, color: Colors.grey),
+              ),
             ),
+            ListTile(
+              leading: const Icon(Icons.person_add_outlined),
+              title: const Text('Crear Empleado'),
+              onTap: () =>
+                  Navigator.pushNamed(context, CrearEmpleadoScreen.routeName),
+            ),
+            ListTile(
+              leading: const Icon(Icons.manage_accounts_outlined),
+              title: const Text('Crear Usuario'),
+              onTap: () =>
+                  Navigator.pushNamed(context, CrearUsuarioScreen.routeName),
+            ),
+            ListTile(
+              leading: const Icon(Icons.add_box_outlined),
+              title: const Text('Crear Activo'),
+              onTap: () =>
+                  Navigator.pushNamed(context, CrearActivoScreen.routeName),
+            ),
+            ListTile(
+              leading: const Icon(Icons.assignment_turned_in_outlined),
+              title: const Text('Crear Asignación'),
+              onTap: () =>
+                  Navigator.pushNamed(context, CrearAsignacionScreen.routeName),
+            ),
+          ],
         ],
       ),
     );
@@ -376,38 +428,34 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildKpiRow() {
     final kpis = <_KpiData>[];
 
-    if (_canSeeActivos) {
+    if (_canSeeActivos)
       kpis.add(_KpiData(
         icon: Icons.computer_outlined,
         label: 'Total Activos',
         value: _totalActivos.toString(),
         color: const Color(0xFF8B1A4A),
       ));
-    }
-    if (_canSeeColaboradores) {
+    if (_canSeeColaboradores)
       kpis.add(_KpiData(
         icon: Icons.people_outline,
         label: 'Colaboradores',
         value: _totalColaboradores.toString(),
         color: Colors.blue,
       ));
-    }
-    if (_canSeeAsignaciones) {
+    if (_canSeeAsignaciones)
       kpis.add(_KpiData(
         icon: Icons.assignment_outlined,
         label: 'Asignaciones',
         value: _totalAsignaciones.toString(),
         color: Colors.teal,
       ));
-    }
-    if (_canSeeProximasBajas) {
+    if (_canSeeProximasBajas)
       kpis.add(_KpiData(
         icon: Icons.outbox_outlined,
         label: 'Próx. Bajas',
         value: _proximasBajas.toString(),
         color: Colors.orange,
       ));
-    }
 
     if (kpis.isEmpty) return const SizedBox.shrink();
 
@@ -688,6 +736,150 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ── Gráfica bienes por empleado ───────────────────────────────────
+  Widget _buildBienesEmpleadoCard() {
+    final entries = _bienesPorEmpleado.entries.toList();
+    final maxVal = entries.isEmpty
+        ? 1.0
+        : entries.map((e) => e.value).reduce((a, b) => a > b ? a : b);
+
+    final colors = [
+      const Color(0xFF8B1A4A),
+      const Color(0xFF9C27B0),
+      Colors.teal,
+      Colors.blue,
+      Colors.orange,
+      Colors.green,
+      Colors.indigo,
+      Colors.pink,
+    ];
+
+    final totalBienes = _bienesPorEmpleado.values.fold(0.0, (a, b) => a + b);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: _isLoadingStats
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Bienes por Empleado',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Valor total de activos asignados por persona',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Barras horizontales por empleado
+                  ...entries.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final nombre = entry.value.key;
+                    final valor = entry.value.value;
+                    final porcentaje = maxVal > 0 ? valor / maxVal : 0.0;
+                    final color = colors[index % colors.length];
+
+                    final partes = nombre.split(' ');
+                    final nombreCorto = partes.length >= 2
+                        ? '${partes[0]} ${partes[1]}'
+                        : nombre;
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              // Avatar inicial
+                              Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  color: color.withOpacity(0.15),
+                                  shape: BoxShape.circle,
+                                  border:
+                                      Border.all(color: color.withOpacity(0.4)),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    nombre[0].toUpperCase(),
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: color),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  nombreCorto,
+                                  style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Q ${valor.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: color,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: LinearProgressIndicator(
+                              value: porcentaje,
+                              minHeight: 10,
+                              backgroundColor: color.withOpacity(0.12),
+                              valueColor: AlwaysStoppedAnimation<Color>(color),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+
+                  const SizedBox(height: 8),
+                  const Divider(),
+                  const SizedBox(height: 8),
+
+                  // Total general
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Total en bienes asignados',
+                        style: TextStyle(
+                            fontSize: 13, fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        'Q ${totalBienes.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFCE93D8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
   // ── Gráfica inversión ─────────────────────────────────────────────
   Widget _buildInvestmentCard() {
     return Card(
@@ -748,11 +940,12 @@ class _KpiData {
   final String label;
   final String value;
   final Color color;
-  const _KpiData(
-      {required this.icon,
-      required this.label,
-      required this.value,
-      required this.color});
+  const _KpiData({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 }
 
 class _StatChip extends StatelessWidget {
@@ -783,39 +976,6 @@ class _StatChip extends StatelessWidget {
         const SizedBox(height: 4),
         Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
       ],
-    );
-  }
-}
-
-class _QuickAccessCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  const _QuickAccessCard(
-      {required this.icon, required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            child: Column(
-              children: [
-                Icon(icon, size: 28, color: const Color(0xFFCE93D8)),
-                const SizedBox(height: 8),
-                Text(label,
-                    style: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w500),
-                    textAlign: TextAlign.center),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
