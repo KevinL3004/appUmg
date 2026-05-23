@@ -319,41 +319,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   Navigator.pushNamed(context, ProximasBajasScreen.routeName),
             ),
 
-          // ── Crear (solo admin) ────────────────────────────────
-          if (_canCrear) ...[
-            const Divider(),
-            const Padding(
-              padding: EdgeInsets.only(left: 16, top: 8, bottom: 4),
-              child: Text(
-                'CREAR',
-                style: TextStyle(fontSize: 11, color: Colors.grey),
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.person_add_outlined),
-              title: const Text('Crear Empleado'),
-              onTap: () =>
-                  Navigator.pushNamed(context, CrearEmpleadoScreen.routeName),
-            ),
-            ListTile(
-              leading: const Icon(Icons.manage_accounts_outlined),
-              title: const Text('Crear Usuario'),
-              onTap: () =>
-                  Navigator.pushNamed(context, CrearUsuarioScreen.routeName),
-            ),
-            ListTile(
-              leading: const Icon(Icons.add_box_outlined),
-              title: const Text('Crear Activo'),
-              onTap: () =>
-                  Navigator.pushNamed(context, CrearActivoScreen.routeName),
-            ),
-            ListTile(
-              leading: const Icon(Icons.assignment_turned_in_outlined),
-              title: const Text('Crear Asignación'),
-              onTap: () =>
-                  Navigator.pushNamed(context, CrearAsignacionScreen.routeName),
-            ),
-          ],
         ],
       ),
     );
