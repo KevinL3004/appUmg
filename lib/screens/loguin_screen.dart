@@ -163,8 +163,9 @@ class _LoguinScreenState extends State<LoguinScreen> {
                       filled: true,
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty)
+                      if (value == null || value.isEmpty) {
                         return 'Ingresa tu contraseña';
+                      }
                       if (value.length < 6) return 'Mínimo 6 caracteres';
                       return null;
                     },

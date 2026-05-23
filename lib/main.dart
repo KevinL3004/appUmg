@@ -1,13 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:umg_activo_colaborador/screens/crear_activo_screen.dart';
-import 'package:umg_activo_colaborador/screens/crear_asignacion_screen.dart';
-import 'package:umg_activo_colaborador/screens/crear_empleado_screen.dart';
-import 'package:umg_activo_colaborador/screens/crear_usuario_screen.dart';
-import 'package:umg_activo_colaborador/screens/mis_asignaciones_screen.dart';
-import 'package:umg_activo_colaborador/screens/partidas_screen.dart';
-import 'package:umg_activo_colaborador/screens/proximas_bajas_screen.dart';
 import 'package:umg_activo_colaborador/screens/screens.dart';
-import 'package:umg_activo_colaborador/screens/usuarios_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -161,10 +153,12 @@ class MyApp extends StatelessWidget {
         ProximasBajasScreen.routeName: (context) => const ProximasBajasScreen(),
         UsuariosScreen.routeName: (context) => const UsuariosScreen(),
         CrearActivoScreen.routeName: (context) => const CrearActivoScreen(),
-        CrearAsignacionScreen.routeName: (context) => const CrearAsignacionScreen(),
+        CrearAsignacionScreen.routeName: (context) =>
+            const CrearAsignacionScreen(),
         CrearEmpleadoScreen.routeName: (context) => const CrearEmpleadoScreen(),
         CrearUsuarioScreen.routeName: (context) => const CrearUsuarioScreen(),
-        MisAsignacionesScreen.routeName: (context) => const MisAsignacionesScreen(),
+        MisAsignacionesScreen.routeName: (context) =>
+            const MisAsignacionesScreen(),
       },
     );
   }

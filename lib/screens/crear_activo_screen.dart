@@ -145,6 +145,7 @@ class _CrearActivoScreenState extends State<CrearActivoScreen> {
           _purchaseInvoiceId = data['id'];
           _facturaCreada = true;
         });
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content:

@@ -63,7 +63,6 @@ class _HomeScreenState extends State<HomeScreen> {
   bool get _canSeePartidas => ['ADMINISTRADOR', 'FINANZAS'].contains(_role);
   bool get _canSeeProximasBajas =>
       ['ADMINISTRADOR', 'INVENTARIO', 'FINANZAS'].contains(_role);
-  bool get _canCrear => _role == 'ADMINISTRADOR';
 
   // ── Carga de datos ────────────────────────────────────────────────
   Future<void> _loadInvestmentSummary() async {
@@ -399,34 +398,38 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildKpiRow() {
     final kpis = <_KpiData>[];
 
-    if (_canSeeActivos)
+    if (_canSeeActivos) {
       kpis.add(_KpiData(
         icon: Icons.computer_outlined,
         label: 'Total Activos',
         value: _totalActivos.toString(),
         color: const Color(0xFF8B1A4A),
       ));
-    if (_canSeeColaboradores)
+    }
+    if (_canSeeColaboradores) {
       kpis.add(_KpiData(
         icon: Icons.people_outline,
         label: 'Colaboradores',
         value: _totalColaboradores.toString(),
         color: Colors.blue,
       ));
-    if (_canSeeAsignaciones)
+    }
+    if (_canSeeAsignaciones) {
       kpis.add(_KpiData(
         icon: Icons.assignment_outlined,
         label: 'Asignaciones',
         value: _totalAsignaciones.toString(),
         color: Colors.teal,
       ));
-    if (_canSeeProximasBajas)
+    }
+    if (_canSeeProximasBajas) {
       kpis.add(_KpiData(
         icon: Icons.outbox_outlined,
         label: 'Próx. Bajas',
         value: _proximasBajas.toString(),
         color: Colors.orange,
       ));
+    }
 
     if (kpis.isEmpty) return const SizedBox.shrink();
 

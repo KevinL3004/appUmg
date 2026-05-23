@@ -130,6 +130,7 @@ class _MisAsignacionesScreenState extends State<MisAsignacionesScreen> {
       );
 
       if (response.statusCode == 200) {
+        // ignore: use_build_context_synchronously
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Asignación confirmada'),
